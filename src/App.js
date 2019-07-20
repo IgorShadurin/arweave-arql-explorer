@@ -3,9 +3,9 @@ import './App.css';
 import JSONInput from 'react-json-editor-ajrm';
 import locale from 'react-json-editor-ajrm/locale/en';
 import arweave from './ArweaveSetup';
-import md5 from 'md5';
-import Immutable from 'seamless-immutable';
-import Base64 from 'js-base64';
+import {Base64} from 'js-base64';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome'
+import {faPlay} from '@fortawesome/free-solid-svg-icons'
 
 function App() {
     const [response, setResponse] = useState({});
@@ -13,7 +13,8 @@ function App() {
     const [isExpanded, setExpanded] = useState(true);
     const [isDecodeTags, setDecodeTags] = useState(true);
     const [isDecodeText, setDecodeText] = useState(true);
-    const [cache, setCache] = useState({});
+    const [isRun, setRun] = useState(false);
+    const [isCorrectInput, setCorrectInput] = useState(true);
     const [placeholder, setPlaceholder] = useState({
         op: "and",
         expr1: {
@@ -29,14 +30,20 @@ function App() {
     });
 
     const onRunCode = async () => {
+        setRun(true);
+        setDisplayResponse({});
         setResponse({});
-        let result = await arweave.arql(placeholder);
-        setResponse(result);
+        try {
+            let result = await arweave.arql(placeholder);
+            setResponse(result);
+        } catch (e) {
+            alert('Incorrect request');
+        }
+
+        setRun(false);
     };
 
-    useEffect((data, data1) => {
-        console.log(11111);
-
+    useEffect(() => {
         async function updateInfo() {
             await updateResponse();
         }
@@ -44,50 +51,31 @@ function App() {
         let res = updateInfo();
     }, [response]);
 
-    const updateResponse = async (isCache = true) => {
-        console.log(cache);
+    const updateResponse = async () => {
         if (!Array.isArray(response) || response.length === 0) {
             return;
         }
 
-        let txs = response;
-        let result = Immutable();
+        let result = [...response];
         if (isExpanded) {
-            const hash = md5(JSON.stringify(placeholder));
-            if (isCache) {
-                txs = cache[hash] ? Immutable(cache[hash]) : txs;
-            }
+            setRun(true);
+            result = await Promise.all(result.map(txid => arweave.transactions.get(txid)));
 
-            if ((isCache && !cache[hash]) || !isCache) {
-                console.log(isCache, hash, cache[hash]);
-                txs = await Promise.all(txs.map(txid => arweave.transactions.get(txid)));
-                console.log(txs);
-                cache[hash] = Immutable(txs);
-                console.log(cache[hash]);
-                //alert('start - ' + cache[hash][0].tags[0].name);
-            }
-
-            result = Immutable(txs);
             if (isDecodeTags) {
-                console.log(result);
                 result = await Promise.all(result.map(transaction => {
-                    console.log(transaction);
                     const tags = transaction.tags.map(tag => {
-                        //let name = tag.get('name', {decode: true, string: true});
-                        //alert('middle - ' + cache[hash][0].tags[0].name);
-
-                        //let value = tag.get('value', {decode: true, string: true});
-                        //console.log(`${name} : ${value}`);
-                        //return {name, value};
                         let name = tag.name;
                         try {
                             name = Base64.decode(name);
                         } catch (e) {
+                            console.log(e);
                         }
+
                         let value = tag.value;
                         try {
                             value = Base64.decode(value);
                         } catch (e) {
+                            console.log(e);
                         }
 
                         return {name, value};
@@ -96,7 +84,6 @@ function App() {
                     return {...transaction, tags};
                 }));
 
-                console.log(result);
             }
 
             if (isDecodeText) {
@@ -107,33 +94,38 @@ function App() {
                     } catch (e) {
                     }
 
-                    return result;
+                    return {...transaction, data: result};
                 }));
             }
 
-            //alert('end - ' + cache[hash][0].tags[0].name);
+            setRun(false);
         } else {
             result = response;
         }
 
-        if (displayResponse !== result) {
-            console.log('CHANGED');
-            setDisplayResponse(result);
-        } else {
-            console.log('NOT CHANGED');
-
-        }
+        setDisplayResponse(result);
     };
 
     return (
         <React.Fragment>
-            <div className="container">
+            <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
+                <span className="navbar-brand">ArQL Explorer</span>
+                <button className="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01"
+                        aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+                    <span className="navbar-toggler-icon"/>
+                </button>
+            </nav>
+
+            <div className="container" style={{marginTop: 20}}>
                 <div className="row">
                     <div className="col-sm-6">
-                        <h1>ArQL request</h1>
+                        <h3>Request</h3>
 
                         <div className="pre-window">
-                            <button className="btn btn-success" onClick={onRunCode}>Run</button>
+                            <button className="btn btn-success" onClick={onRunCode} disabled={isRun || !isCorrectInput}>
+                                <FontAwesomeIcon icon={faPlay}/>&nbsp;
+                                Run{isRun ? '...' : ''}
+                            </button>
                         </div>
 
                         <JSONInput
@@ -141,11 +133,18 @@ function App() {
                             placeholder={placeholder}
                             theme={'light_mitsuketa_tribute'}
                             locale={locale}
-                            //height='550px'
+                            onChange={_ => {
+                                if (_.error) {
+                                    setCorrectInput(false);
+                                } else {
+                                    setCorrectInput(true);
+                                    setPlaceholder(_.jsObject);
+                                }
+                            }}
                         />
                     </div>
                     <div className="col-sm-6">
-                        <h1>Response</h1>
+                        <h3>Response</h3>
                         <div className="pre-window">
                             <div className="form-check form-check-inline">
                                 <input id="checkbox-expanded" type="checkbox" className="form-check-input"
@@ -156,6 +155,7 @@ function App() {
 
                             <div className="form-check form-check-inline">
                                 <input id="checkbox-tags" type="checkbox" className="form-check-input"
+                                       disabled={!isExpanded}
                                        checked={isDecodeTags}
                                        onChange={event => setDecodeTags(event.target.checked)}/>
                                 <label className="form-check-label" htmlFor="checkbox-tags">Decode tags</label>
@@ -163,9 +163,10 @@ function App() {
 
                             <div className="form-check form-check-inline">
                                 <input id="checkbox-text" type="checkbox" className="form-check-input"
+                                       disabled={!isExpanded}
                                        checked={isDecodeText}
                                        onChange={event => setDecodeText(event.target.checked)}/>
-                                <label className="form-check-label" htmlFor="checkbox-text">Decode text</label>
+                                <label className="form-check-label" htmlFor="checkbox-text">Decode data</label>
                             </div>
                         </div>
                         <JSONInput
@@ -174,13 +175,14 @@ function App() {
                             theme={'light_mitsuketa_tribute'}
                             locale={locale}
                             viewOnly={true}
-                            //height='550px'
                         />
                     </div>
                 </div>
+                <p>ArQL docs: <a
+                    target="_blank"
+                    href="https://github.com/ArweaveTeam/arweave-js#arql">https://github.com/ArweaveTeam/arweave-js#arql</a>
+                </p>
             </div>
-
-
         </React.Fragment>
     );
 }

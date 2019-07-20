@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.19",
+    "@fortawesome/free-solid-svg-icons": "^5.9.0",
+    "@fortawesome/react-fontawesome": "^0.1.4",
     "arweave": "^1.4.0",
     "fsevents": "^2.0.7",
     "js-base64": "^2.5.1",
-    "md5": "^2.2.1",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
+    "react-fontawesome": "^1.6.1",
     "react-json-editor-ajrm": "^2.5.9",
-    "react-scripts": "3.0.1",
-    "seamless-immutable": "^7.1.4"
+    "react-scripts": "3.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
