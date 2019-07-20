@@ -1,4 +1,4 @@
-ArQL Explorer allow receive info from [Arweave](https://www.arweave.org/) using [ArQL queries](https://github.com/ArweaveTeam/arweave-js#arql).
+ArQL Explorer allow to receive info from [Arweave](https://www.arweave.org/) using [ArQL queries](https://github.com/ArweaveTeam/arweave-js#arql).
 
 Deployed version: https://arweave.net/1w40L6Z8WLrRTZiBRcp4qMPaMuJfblUlB9pqovkh5PQ
 
